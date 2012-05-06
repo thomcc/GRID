@@ -2,6 +2,7 @@
 /lib
 /classes
 /checkouts
+/comp
 pom.xml
 *.jar
 *.class

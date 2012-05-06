@@ -8,7 +8,7 @@ html, canvas, img {
 }
 
 body {
-  background-color: #333;
+  background-color: #2e2e2e;
   font: 14px/21px "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif;
   color: #ddd;
   padding: 15px;
@@ -23,29 +23,95 @@ body {
 }
 
 #cells {
-
+  -webkit-transition: all 0.2s ease-in-out;
+  -moz-transition: all 0.2s ease-in-out;
+  -o-transition: all 0.2s ease-in-out;
+  -ms-transition: all 0.2s ease-in-out;
+  transition: all 0.2s ease-in-out;
 }
 
 .cell {
   width: 40px;
   height: 40px;
   border-radius: 5px;
-/*  padding: 0 12px;*/
+  box-sizing: border-box;
+  text-align: center;
+  padding-top: 10px;
+  font-family: monospace;
+  font-size: 20pt;
   margin: 2px;
   float: left;
   background-color: rgba(100%,100%,100%,0.3);
-  
+}
+
+.cell.active {
+  background-color: #b5bd68;/* hsla(60,70%,45%,0.7);*/
+}
+
+.cell.error {
+  background-color: #cc6666; /* hsla(0,70%,45%,0.7);*/
+}
+
+
+#ui-wrap {
+  margin-left: -50%;
+  display: inline;
+  float: left;
+}
+
+#cells {
+  background-color: #1d1f21;
+  border-radius: 10px;
+  border: 5px solid rgba(255,255,255,0.3);
+  display: inline;
+  float: left;
 }
 
 #grid {
-  margin-left: -50%;
+  border-radius: 20px;
+  border: 10px solid rgba(255,255,255,0.2);
+  background-color: #434e48;
+  padding: 10px;
+  display: inline;
+  float: left;
+}
+#stack-wrap {
+  display: inline;
+  float: left;
+  text-align: center;
+  width: 200px;
+}
+#stack {
+  padding: 0;
+  margin: 0;
+}
+#stack li {
+  list-style: none;
+  text-align: center;
+  padding: 10px;
+  margin: 5px;
+  border-radius: 10px;
+  color: #2e2e2e;
+  font-family: monospace;
+  font-size: 15pt;
+  border: 2px solid: rgba(255,255,255,0.2);
 }
 
+#stack li.value {
+  background-color: #b294bb;
+}
 
+#stack li.code {
+  background-color: #81a2be;
+}
 
-
-
-
+#controls {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100%;
+  
+}
 
 
 

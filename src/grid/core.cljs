@@ -94,7 +94,7 @@
 
 (defmethod exec ::place [c]
   (-> c pop pop pop (set-at [(peek c) (peek (pop c))]
-                            (pop c))))
+                            (-> c pop pop peek))))
 
 (defmethod exec ::halt [c] (assoc c :halted? true))
 
@@ -204,9 +204,9 @@
 ;   [0 2] 1
    [1 2] ::up,
    [3 2] ::get,
-   [4 2] 7,
-   [5 2] 5
-   [6 2] ::right,
+   [4 2] 5,
+   [5 2] 7
+   [6 2] ::left,
    [0 3] ::diag-sec,
 ;   [1 3] ::place
 ;   [2 3] 1
@@ -216,7 +216,7 @@
 ;   [6 3] 0
    [7 3] ::swap,
    [8 3] ::skip!
-   [7 4] 6,
+   [7 4] 7,
    [0 5] ::right,
    [1 5] 3
    [2 5] ::skip!,
@@ -225,10 +225,10 @@
    [7 5] ::diag-pri
    [9 5] ::diag-pri,
    [0 6] ::down,
-   [0 7] 6,
+   [0 7] 1
    [5 7] ::halt,
    [9 7] ::skip?,
-   [0 8] 2
+   [0 8] 6
    [9 8] ::horizontal,
    [0 9] ::jump,
    [3 9] ::diag-pri,

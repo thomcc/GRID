@@ -45,11 +45,11 @@ body {
 }
 
 .cell.active {
-  background-color: #b5bd68;/**/
+  background-color: #b5bd68;
 }
 
 .cell.error {
-  background-color: #cc6666; /* hsla(0,70%,45%,0.7);*/
+  background-color: #cc6666;
 }
 
 

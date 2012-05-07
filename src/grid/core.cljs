@@ -12,7 +12,7 @@
 (def comps {::lt <, ::gt >, ::eq =})
 (def ariths {::add +, ::sub -, ::mul *, ::mod mod, ::quo quot})
 (def refls {::diag-pri (fn [[dx dy]] [dy dx])
-            ::diag-sec (fn [[dx dy]] [(- dy) dx])
+            ::diag-sec (fn [[dx dy]] [(- dy) (- dx)])
             ::vertical (fn [[dx dy]] [(- dx) dy])
             ::horizontal (fn [[dx dy]] [dx (- dy)])
             ::bounce (fn [[dx dy]] [(- dx) (- dy)])})
@@ -27,20 +27,20 @@
 (derive-keys ariths ::arithmetic)
 (derive ::skipping ::empty)
 
-(defrecord CodeState [stack box w h pos dir skip? halted?]
+(defrecord CodeState [stack box w h pos dir skip? halted? error]
   IStack
   (-peek [_] (-peek stack))
   (-pop [this] (update-in this [:stack] pop)))
 
 (defn code-state [w h]
-  (CodeState. [] {} w h [-1 0] [1 0] false false))
+  (CodeState. [] {} w h [-1 0] [1 0] false false nil))
 
+(defn ohno [cs] (assoc cs :error (:pos cs) :halted? true))
 (defn push [cs x] (update-in cs [:stack] conj x))
-(defn skip [cs b] (assoc cs :skip b))
+(defn skip [cs b] (assoc cs :skip? b))
 (defn set-at [env pos val] (assoc-in env [:box pos] val))
-
 (defn move [{w :w h :h [x y] :pos [dx dy] :dir :as env}]
-  (assoc env :pos [(mod (+ x dx) w) (mod (+ y dy) h)]))
+  (assoc env :pos [(mod (+ w x dx) w) (mod (+ h y dy) h)]))
 
 (defn at [cs & [pos]]
   (get-in cs [:box (or pos (get cs :pos))]))
@@ -76,7 +76,7 @@
 
 (defmethod exec ::empty [c] (skip c false))
 (defmethod exec ::skip! [c] (skip c true))
-(defmethod exec ::skip? [c] (pop (skip c (zero? (peek c)))))
+(defmethod exec ::skip? [c] (skip c (not (zero? (peek c)))))
 (defmethod exec ::drop [c] (pop c))
 (defmethod exec ::dup [cs]
   (update-in cs [:stack] #(conj % (peek %))))
@@ -135,15 +135,14 @@
    ::skip! "!"
    ::skip? "?"})
 
-(defpartial cell [r c {:keys [box pos]}]
+(defpartial cell [r c {:keys [box pos error]}]
   [:div {:data-row r
          :data-col c
-         :class (if (= [c r] pos)
-                  "cell active"
-                  "cell")}
-   (if-let [is (inst->string (box [c r]))]
-     is
-     (str (box [c r])))])
+         :class (cond (= error [c r]) "cell error"
+                      (= [c r] pos) "cell active"
+                      :else "cell")}
+   (if-let [is (inst->string (box [c r]))] is
+           (str (box [c r])))])
 
 (defpartial cells [{:keys [w h box pos] :as code}]
   [:table#cells
@@ -172,19 +171,6 @@
      (if (> 10 (count s)) s
          (-> (take 9 s) vec (conj [:li "..."]) seq))]]))
 
-
-(defn initialize [cs]
-  (-> cs
-      (set-at [0 0] ::down)
-      (set-at [0 3] ::right)
-      (set-at [5 0] ::halt)
-      (set-at [7 0] ::left)
-      (set-at [7 3] ::up)
-      (set-at [4 3] 4)
-      (set-at [5 3] 5)
-      (set-at [6 3] ::add)
-      tick))
-
 (defn set-ui [cstate]
   (remove ($ :#cells))
   (remove ($ :#stack-wrap))
@@ -192,18 +178,80 @@
       (append (cells cstate))
       (append (stack cstate))))
 
+;;  0123456789
+;;0 v> v
+;;1 1  >18p
+;;2 6^ G75<
+;;3 /p14p70j!
+;;4        6
+;;5 >3!/  !\ \
+;;6 v
+;;7 6    H   ?
+;;8 2        _
+;;9 j  \ -s1 /
+;;
+
+(def init-box
+  {[0 0] ::down
+   [1 0] ::right,
+   [3 0] ::down,
+   [7 0] ::jump
+;   [0 1] 6
+   [3 1] ::right,
+   [4 1] 1
+   [5 1] 8,
+   [6 1] ::place,
+;   [0 2] 1
+   [1 2] ::up,
+   [3 2] ::get,
+   [4 2] 7,
+   [5 2] 5
+   [6 2] ::right,
+   [0 3] ::diag-sec,
+;   [1 3] ::place
+;   [2 3] 1
+;   [3 3] 4
+;   [4 3] ::place
+;   [5 3] 7
+;   [6 3] 0
+   [7 3] ::swap,
+   [8 3] ::skip!
+   [7 4] 6,
+   [0 5] ::right,
+   [1 5] 3
+   [2 5] ::skip!,
+   [3 5] ::diag-sec,
+   [6 5] ::skip!,
+   [7 5] ::diag-pri
+   [9 5] ::diag-pri,
+   [0 6] ::down,
+   [0 7] 6,
+   [5 7] ::halt,
+   [9 7] ::skip?,
+   [0 8] 2
+   [9 8] ::horizontal,
+   [0 9] ::jump,
+   [3 9] ::diag-pri,
+   [6 9] ::sub
+   [7 9] 1,
+   [9 9] ::diag-sec})
+
 (defn set-size! [w h]
-  (reset! cstate (initialize (code-state w h)))
+  (reset! cstate (assoc (code-state w h) :box init-box))
   (set-ui @cstate))
 
 
 
-(def ctls ["run" "step"])
+(def ctls ["run" "step" "reset"])
 
 (def running? (atom false))
 
 (defn step []
-  (swap! cstate tick)
+  (try
+    (let [ns (tick @cstate)]
+      (reset! cstate ns))
+    (catch js/Error e
+      (swap! cstate ohno)))
   (set-ui @cstate))
 
 (defn run []
@@ -222,11 +270,21 @@
   (remove-class ($ :#run) "active")
   (reset! running? false))
 
+(defn reset []
+  (stop)
+  (swap! cstate #(assoc % :pos [-1 0] :stack [] :dir [1 0] :error nil))
+  (set-ui @cstate))
+
+(defn clickwrap [f]
+  (fn [e] (.preventDefault e) (f e)))
+
 (defn init []
   (set-size! 10 10)
   (append ($ :#grid) (controls ctls))
-  (on ($ :#step) :click step)
-  (on ($ :#run) :click
-      #(if @running? (stop) (go))))
+  (on ($ :#step) :click (clickwrap step))
+  (on ($ :#run) :click (clickwrap #(if @running? (stop) (go))))
+  (on ($ :#reset) :click (clickwrap reset)))
+
+
 
 (init)

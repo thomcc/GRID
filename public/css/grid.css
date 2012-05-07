@@ -132,6 +132,8 @@ a.ctrl.active {
 a.ctrl:hover {
   background-color: rgba(0,0,0,0.2);
 }
-
+a.ctrl.active:hover {
+  background-color: hsl(66, 39%, 27%);
+}
 
 

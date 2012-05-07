@@ -31,21 +31,21 @@ body {
 }
 
 .cell {
-  width: 40px;
-  height: 40px;
+  background-color: rgba(100%,100%,100%,0.3);
   border-radius: 5px;
   box-sizing: border-box;
-  text-align: center;
-  padding-top: 10px;
+  float: left;
   font-family: monospace;
   font-size: 20pt;
+  height: 40px;
   margin: 2px;
-  float: left;
-  background-color: rgba(100%,100%,100%,0.3);
+  padding-top: 10px;
+  text-align: center;
+  width: 40px;
 }
 
 .cell.active {
-  background-color: #b5bd68;/* hsla(60,70%,45%,0.7);*/
+  background-color: #b5bd68;/**/
 }
 
 .cell.error {
@@ -82,19 +82,19 @@ body {
   width: 200px;
 }
 #stack {
-  padding: 0;
   margin: 0;
+  padding: 0;
 }
 #stack li {
-  list-style: none;
-  text-align: center;
-  padding: 10px;
-  margin: 5px;
   border-radius: 10px;
+  border: 2px solid: rgba(255,255,255,0.2);
   color: #2e2e2e;
   font-family: monospace;
   font-size: 15pt;
-  border: 2px solid: rgba(255,255,255,0.2);
+  list-style: none;
+  margin: 5px;
+  padding: 10px;
+  text-align: center;
 }
 
 #stack li.value {
@@ -104,17 +104,33 @@ body {
 #stack li.code {
   background-color: #81a2be;
 }
-
-a.ctrl {
-  padding: 5px 20px;
-  margin: 30px;
-  border: 1px solid black;
+#controls {
   position: fixed;
   top: 0;
   left: 0;
+  padding: 20px;
+}
+a.ctrl {
+  background-color: #606163;
   border-radius: 10px;
-  width: 40px;
+  border: 3px solid rgba(255,255,255,0.3);
+  color: hsl(0, 0%, 87%);
+  display: block;
+  font-family: monospace;
+  font-size: 15px;
+  margin: 10px;
+  padding: 5px 20px;
   text-align: center;
+  text-decoration: none;
+  width: 40px;
+}
+
+a.ctrl.active {
+  background-color: #b5bd68;
+}
+
+a.ctrl:hover {
+  background-color: rgba(0,0,0,0.2);
 }
 
 

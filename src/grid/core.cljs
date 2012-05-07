@@ -1,7 +1,8 @@
 (ns grid.core
   (:refer-clojure :exclude [remove])
-  (:require [crate.core :as crate])
-  (:use [jayq.core :only [$ append bind remove]])
+  (:require [crate.core :as crate]
+            [clojure.string :as string])
+  (:use [jayq.core :only [$ append bind remove on add-class remove-class]])
   (:use-macros [crate.macros :only [defpartial]]
                [grid.macros :only [dbg]]))
 
@@ -26,13 +27,13 @@
 (derive-keys ariths ::arithmetic)
 (derive ::skipping ::empty)
 
-(defrecord CodeState [stack box w h pos dir skip?]
+(defrecord CodeState [stack box w h pos dir skip? halted?]
   IStack
   (-peek [_] (-peek stack))
-  (-pop [this] (update-in this :stack pop)))
+  (-pop [this] (update-in this [:stack] pop)))
 
 (defn code-state [w h]
-  (CodeState. [] {} w h [-1 0] [1 0] false))
+  (CodeState. [] {} w h [-1 0] [1 0] false false))
 
 (defn push [cs x] (update-in cs [:stack] conj x))
 (defn skip [cs b] (assoc cs :skip b))
@@ -41,9 +42,8 @@
 (defn move [{w :w h :h [x y] :pos [dx dy] :dir :as env}]
   (assoc env :pos [(mod (+ x dx) w) (mod (+ y dy) h)]))
 
-(defn at
-  ([cs] (get-in cs [:box (get cs :pos)]))
-  ([cs pos] (get-in cs [:box pos])))
+(defn at [cs & [pos]]
+  (get-in cs [:box (or pos (get cs :pos))]))
 
 (defn inst [cs]
   (dbg "inst"
@@ -96,11 +96,13 @@
   (-> c pop pop pop (set-at [(peek c) (peek (pop c))]
                             (pop c))))
 
-(defmethod exec ::halt [c] (throw (js/Error. "HALT")))
+(defmethod exec ::halt [c] (assoc c :halted? true))
 
 (defn tick [code]
   (dbg "tick"
-    (-> code move exec)))
+    (if-not (:halted? code)
+      (-> code move exec)
+      code)))
 
 (def cstate (atom nil))
 (defn code? [v] (keyword? v))
@@ -139,7 +141,9 @@
          :class (if (= [c r] pos)
                   "cell active"
                   "cell")}
-   (inst->string (box [c r]))])
+   (if-let [is (inst->string (box [c r]))]
+     is
+     (str (box [c r])))])
 
 (defpartial cells [{:keys [w h box pos] :as code}]
   [:table#cells
@@ -149,9 +153,12 @@
                 (range w))])
         (range h))])
 
-(defpartial controls []
-  [:div.controls
-   [:a.ctrl {:href "#" :id "tick"} "Tick"]])
+(defpartial control [ctrl]
+  [:a.ctrl {:href "#" :id ctrl} (string/capitalize ctrl)])
+
+(defpartial controls [cs]
+  [:div#controls
+   (map control cs)])
 
 (defpartial stack [{:keys [stack]}]
   (let [s (reverse
@@ -169,36 +176,57 @@
 (defn initialize [cs]
   (-> cs
       (set-at [0 0] ::down)
-      (set-at [0 3] ::left)
+      (set-at [0 3] ::right)
       (set-at [5 0] ::halt)
       (set-at [7 0] ::left)
       (set-at [7 3] ::up)
-      (set-at [5 5] ::quo)
-      (push 3002)
-      (push ::get)
-      (push ::jump)
-      (push ::diag-pri)
+      (set-at [4 3] 4)
+      (set-at [5 3] 5)
+      (set-at [6 3] ::add)
       tick))
 
-(defn set-size! [w h]
-  (reset! cstate (initialize (code-state w h)))
+(defn set-ui [cstate]
   (remove ($ :#cells))
   (remove ($ :#stack-wrap))
   (-> ($ :#grid)
-      (append (cells @cstate))
-      (append (stack @cstate))
-      (append (controls))))
+      (append (cells cstate))
+      (append (stack cstate))))
+
+(defn set-size! [w h]
+  (reset! cstate (initialize (code-state w h)))
+  (set-ui @cstate))
 
 
+
+(def ctls ["run" "step"])
+
+(def running? (atom false))
+
+(defn step []
+  (swap! cstate tick)
+  (set-ui @cstate))
+
+(defn run []
+  (when @running?
+    (step)
+    (if (:halted? @cstate)
+      (stop)
+      (js/setTimeout run 100))))
+
+(defn go []
+  (add-class ($ :#run) "active")
+  (reset! running? true)
+  (js/setTimeout run 100))
+
+(defn stop []
+  (remove-class ($ :#run) "active")
+  (reset! running? false))
 
 (defn init []
-  (set-size! 10 10))
-
-
-
-
-
-
-
+  (set-size! 10 10)
+  (append ($ :#grid) (controls ctls))
+  (on ($ :#step) :click step)
+  (on ($ :#run) :click
+      #(if @running? (stop) (go))))
 
 (init)

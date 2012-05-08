@@ -6,7 +6,7 @@
   (:use-macros [crate.macros :only [defpartial]]
                [grid.macros :only [dbg]]))
 
-(def debug? true)
+(def debug? false)
 
 (def dirs {::right [1 0], ::left [-1 0], ::down [0 1], ::up [0 -1]})
 (def comps {::lt <, ::gt >, ::eq =})
@@ -27,13 +27,13 @@
 (derive-keys ariths ::arithmetic)
 (derive ::skipping ::empty)
 
-(defrecord CodeState [stack box w h pos dir skip? halted? error]
+(defrecord CodeState [stack box w h pos dir skip? halted? error changed]
   IStack
   (-peek [_] (-peek stack))
   (-pop [this] (update-in this [:stack] pop)))
 
 (defn code-state [w h]
-  (CodeState. [] {} w h [-1 0] [1 0] false false nil))
+  (CodeState. [] {} w h [-1 0] [1 0] false false nil nil))
 
 (defn ohno [cs] (assoc cs :error (:pos cs) :halted? true))
 (defn push [cs x] (update-in cs [:stack] conj x))
@@ -93,8 +93,11 @@
   (-> c pop pop (push (at c [(peek c) (peek (pop c))]))))
 
 (defmethod exec ::place [c]
-  (-> c pop pop pop (set-at [(peek c) (peek (pop c))]
-                            (-> c pop pop peek))))
+  (-> c pop pop pop
+      (set-at [(peek c) (peek (pop c))]
+              (-> c pop pop peek))
+      ;; special case for now
+      (assoc :changed [(peek c) (peek (pop c))])))
 
 (defmethod exec ::halt [c] (assoc c :halted? true))
 
@@ -135,8 +138,15 @@
    ::skip! "!"
    ::skip? "?"})
 
+(defn make-cell-id [row column]
+  (str "cell-row-" row "-col-" column))
+
+(defn make-td-id [row column]
+  (str "wrap-row-" row "-col-" column))
+
 (defpartial cell [r c {:keys [box pos error]}]
-  [:div {:data-row r
+  [:div {:id (make-cell-id r c)
+         :data-row r
          :data-col c
          :class (cond (= error [c r]) "cell error"
                       (= [c r] pos) "cell active"
@@ -148,7 +158,7 @@
   [:table#cells
    (map (fn [row]
           [:tr.row
-           (map #(vector :td (cell row % code))
+           (map #(vector :td {:id (make-td-id row %)} (cell row % code))
                 (range w))])
         (range h))])
 
@@ -171,6 +181,24 @@
      (if (> 10 (count s)) s
          (-> (take 9 s) vec (conj [:li "..."]) seq))]]))
 
+(defn update-active [{[nx ny] :pos}]
+  (->  ($ "div.active")
+       (remove-class "active"))
+  (-> ($ (str "#" (make-cell-id ny nx)))
+      (add-class "active")))
+
+(defn update-stack [cstate] ;; this is probably fast enough
+  (remove ($ :#stack-wrap))
+  (append ($ :#grid) (stack cstate)))
+
+(defn update-grid [{c :changed :as cs}]
+  (when c
+    (let [[cx cy] c]
+      (remove ($ (str "#" (make-cell-id cy cx))))
+      (append ($ (str "#" (make-td-id cy cx)))
+              (cell cy cx cs)))))
+
+
 (defn set-ui [cstate]
   (remove ($ :#cells))
   (remove ($ :#stack-wrap))
@@ -190,6 +218,12 @@
   (reset! cstate (assoc (code-state w h) :box init-box))
   (set-ui @cstate))
 
+(defn update-ui [cs]
+  (doto cs
+    update-grid
+    update-stack
+    update-active))
+
 (def ctls ["run" "step" "reset"])
 
 (def running? (atom false))
@@ -200,7 +234,10 @@
       (reset! cstate ns))
     (catch js/Error e
       (swap! cstate ohno)))
-  (set-ui @cstate))
+  ;; (set-ui @cstate)
+  (update-ui @cstate)
+  (swap! cstate assoc :changed nil) ;; cludge
+  )
 
 (defn run []
   (when @running?

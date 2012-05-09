@@ -134,7 +134,7 @@
    ::drop "\u0394" ;; delta
    ::place "\u03A0" ;; pi
    ::get "\u0393" ;; gamma
-   ::jump "\u2933" ;; jumpy arrow
+   ::jump "J" ;; jumpy arrow
    ::skip! "!"
    ::skip? "?"})
 
